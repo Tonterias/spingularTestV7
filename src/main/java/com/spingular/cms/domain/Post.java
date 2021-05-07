@@ -69,8 +69,8 @@ public class Post implements Serializable {
     @Column(name = "image_content_type")
     private String imageContentType;
 
-    @OneToMany(mappedBy = "post")
-    @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+    @OneToMany(mappedBy = "post", cascade = CascadeType.REMOVE)
+    @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
     @JsonIgnoreProperties(value = { "appuser", "post" }, allowSetters = true)
     private Set<Comment> comments = new HashSet<>();
 
@@ -102,13 +102,13 @@ public class Post implements Serializable {
     @JsonIgnoreProperties(value = { "posts", "appuser", "community" }, allowSetters = true)
     private Blog blog;
 
-    @ManyToMany(mappedBy = "posts")
-    @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+    @ManyToMany(mappedBy = "posts", cascade = CascadeType.REMOVE)
+    @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
     @JsonIgnoreProperties(value = { "posts" }, allowSetters = true)
     private Set<Tag> tags = new HashSet<>();
 
-    @ManyToMany(mappedBy = "posts")
-    @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+    @ManyToMany(mappedBy = "posts", cascade = CascadeType.REMOVE)
+    @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
     @JsonIgnoreProperties(value = { "posts" }, allowSetters = true)
     private Set<Topic> topics = new HashSet<>();
 
@@ -388,7 +388,8 @@ public class Post implements Serializable {
         this.topics = topics;
     }
 
-    // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
+    // jhipster-needle-entity-add-getters-setters - JHipster will add getters and
+    // setters here
 
     @Override
     public boolean equals(Object o) {
@@ -403,26 +404,18 @@ public class Post implements Serializable {
 
     @Override
     public int hashCode() {
-        // see https://vladmihalcea.com/how-to-implement-equals-and-hashcode-using-the-jpa-entity-identifier/
+        // see
+        // https://vladmihalcea.com/how-to-implement-equals-and-hashcode-using-the-jpa-entity-identifier/
         return getClass().hashCode();
     }
 
     // prettier-ignore
     @Override
     public String toString() {
-        return "Post{" +
-            "id=" + getId() +
-            ", creationDate='" + getCreationDate() + "'" +
-            ", publicationDate='" + getPublicationDate() + "'" +
-            ", headline='" + getHeadline() + "'" +
-            ", leadtext='" + getLeadtext() + "'" +
-            ", bodytext='" + getBodytext() + "'" +
-            ", quote='" + getQuote() + "'" +
-            ", conclusion='" + getConclusion() + "'" +
-            ", linkText='" + getLinkText() + "'" +
-            ", linkURL='" + getLinkURL() + "'" +
-            ", image='" + getImage() + "'" +
-            ", imageContentType='" + getImageContentType() + "'" +
-            "}";
+        return "Post{" + "id=" + getId() + ", creationDate='" + getCreationDate() + "'" + ", publicationDate='"
+                + getPublicationDate() + "'" + ", headline='" + getHeadline() + "'" + ", leadtext='" + getLeadtext()
+                + "'" + ", bodytext='" + getBodytext() + "'" + ", quote='" + getQuote() + "'" + ", conclusion='"
+                + getConclusion() + "'" + ", linkText='" + getLinkText() + "'" + ", linkURL='" + getLinkURL() + "'"
+                + ", image='" + getImage() + "'" + ", imageContentType='" + getImageContentType() + "'" + "}";
     }
 }
