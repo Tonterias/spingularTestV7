@@ -95,6 +95,7 @@
   },
   "defaultProject": "spingular",
   "cli": {
+    "analytics": "c1ef6b29-0108-4f74-a80a-7d5fbb5cd05f",
     "packageManager": "npm"
   }
 }
