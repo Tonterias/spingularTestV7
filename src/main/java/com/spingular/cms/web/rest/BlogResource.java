@@ -1,10 +1,19 @@
 package com.spingular.cms.web.rest;
 
+import com.spingular.cms.domain.Appuser;
+import com.spingular.cms.domain.User;
+import com.spingular.cms.repository.AppuserRepository;
 import com.spingular.cms.repository.BlogRepository;
+import com.spingular.cms.repository.UserRepository;
+import com.spingular.cms.security.AuthoritiesConstants;
+import com.spingular.cms.security.SecurityUtils;
 import com.spingular.cms.service.BlogQueryService;
 import com.spingular.cms.service.BlogService;
 import com.spingular.cms.service.criteria.BlogCriteria;
+import com.spingular.cms.service.dto.AppuserDTO;
 import com.spingular.cms.service.dto.BlogDTO;
+import com.spingular.cms.service.mapper.AppuserMapper;
+import com.spingular.cms.service.mapper.AppuserMapperImpl;
 import com.spingular.cms.web.rest.errors.BadRequestAlertException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -47,17 +56,31 @@ public class BlogResource {
 
     private final BlogQueryService blogQueryService;
 
-    public BlogResource(BlogService blogService, BlogRepository blogRepository, BlogQueryService blogQueryService) {
+    private final UserRepository userRepository;
+
+    private final AppuserRepository appuserRepository;
+
+    public BlogResource(
+        BlogService blogService,
+        BlogRepository blogRepository,
+        BlogQueryService blogQueryService,
+        UserRepository userRepository,
+        AppuserRepository appuserRepository
+    ) {
         this.blogService = blogService;
         this.blogRepository = blogRepository;
         this.blogQueryService = blogQueryService;
+        this.userRepository = userRepository;
+        this.appuserRepository = appuserRepository;
     }
 
     /**
      * {@code POST  /blogs} : Create a new blog.
      *
      * @param blogDTO the blogDTO to create.
-     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new blogDTO, or with status {@code 400 (Bad Request)} if the blog has already an ID.
+     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with
+     *         body the new blogDTO, or with status {@code 400 (Bad Request)} if the
+     *         blog has already an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("/blogs")
@@ -65,6 +88,15 @@ public class BlogResource {
         log.debug("REST request to save Blog : {}", blogDTO);
         if (blogDTO.getId() != null) {
             throw new BadRequestAlertException("A new blog cannot already have an ID", ENTITY_NAME, "idexists");
+        }
+        if (!SecurityUtils.hasCurrentUserThisAuthority(AuthoritiesConstants.ADMIN)) {
+            log.debug("No user passed in, using current user: {}", SecurityUtils.getCurrentUserLogin());
+
+            Appuser appuser = new Appuser();
+            appuser.setUser(userRepository.findOneByLogin(SecurityUtils.getCurrentUserLogin().get()).orElse(new User()));
+
+            AppuserMapper mapper = new AppuserMapperImpl();
+            blogDTO.setAppuser(mapper.toDto(appuser));
         }
         BlogDTO result = blogService.save(blogDTO);
         return ResponseEntity
@@ -76,11 +108,13 @@ public class BlogResource {
     /**
      * {@code PUT  /blogs/:id} : Updates an existing blog.
      *
-     * @param id the id of the blogDTO to save.
+     * @param id      the id of the blogDTO to save.
      * @param blogDTO the blogDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated blogDTO,
-     * or with status {@code 400 (Bad Request)} if the blogDTO is not valid,
-     * or with status {@code 500 (Internal Server Error)} if the blogDTO couldn't be updated.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the updated blogDTO, or with status {@code 400 (Bad Request)} if the
+     *         blogDTO is not valid, or with status
+     *         {@code 500 (Internal Server Error)} if the blogDTO couldn't be
+     *         updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/blogs/{id}")
@@ -108,14 +142,17 @@ public class BlogResource {
     }
 
     /**
-     * {@code PATCH  /blogs/:id} : Partial updates given fields of an existing blog, field will ignore if it is null
+     * {@code PATCH  /blogs/:id} : Partial updates given fields of an existing blog,
+     * field will ignore if it is null
      *
-     * @param id the id of the blogDTO to save.
+     * @param id      the id of the blogDTO to save.
      * @param blogDTO the blogDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated blogDTO,
-     * or with status {@code 400 (Bad Request)} if the blogDTO is not valid,
-     * or with status {@code 404 (Not Found)} if the blogDTO is not found,
-     * or with status {@code 500 (Internal Server Error)} if the blogDTO couldn't be updated.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the updated blogDTO, or with status {@code 400 (Bad Request)} if the
+     *         blogDTO is not valid, or with status {@code 404 (Not Found)} if the
+     *         blogDTO is not found, or with status
+     *         {@code 500 (Internal Server Error)} if the blogDTO couldn't be
+     *         updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PatchMapping(value = "/blogs/{id}", consumes = "application/merge-patch+json")
@@ -148,12 +185,20 @@ public class BlogResource {
      *
      * @param pageable the pagination information.
      * @param criteria the criteria which the requested entities should match.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of blogs in body.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list
+     *         of blogs in body.
      */
     @GetMapping("/blogs")
     public ResponseEntity<List<BlogDTO>> getAllBlogs(BlogCriteria criteria, Pageable pageable) {
         log.debug("REST request to get Blogs by criteria: {}", criteria);
         Page<BlogDTO> page = blogQueryService.findByCriteria(criteria, pageable);
+        // TODO: Modificarlo
+        // Page<Points> page;
+        // if (SecurityUtils.isCurrentUserInRole(AuthoritiesConstants.ADMIN)) {
+        // page = pointsRepository.findAllByOrderByDateDesc(pageable);
+        // } else {
+        // page = pointsRepository.findByUserIsCurrentUser(pageable);
+        // }
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
@@ -162,7 +207,8 @@ public class BlogResource {
      * {@code GET  /blogs/count} : count all the blogs.
      *
      * @param criteria the criteria which the requested entities should match.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the count in body.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the count
+     *         in body.
      */
     @GetMapping("/blogs/count")
     public ResponseEntity<Long> countBlogs(BlogCriteria criteria) {
@@ -174,7 +220,8 @@ public class BlogResource {
      * {@code GET  /blogs/:id} : get the "id" blog.
      *
      * @param id the id of the blogDTO to retrieve.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the blogDTO, or with status {@code 404 (Not Found)}.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the blogDTO, or with status {@code 404 (Not Found)}.
      */
     @GetMapping("/blogs/{id}")
     public ResponseEntity<BlogDTO> getBlog(@PathVariable Long id) {
